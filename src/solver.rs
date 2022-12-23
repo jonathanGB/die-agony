@@ -229,7 +229,7 @@ impl Solver {
                 new_visited_cells.push(cell);
                 let new_dice_top = score_diff / new_turn;
                 Journey {
-                    dice: dice.clone_with_top(new_dice_top),
+                    dice: dice.set_top(new_dice_top),
                     turn: new_turn,
                     visited_cells: new_visited_cells,
                 }

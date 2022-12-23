@@ -14,12 +14,11 @@ pub(crate) struct Dice {
 }
 
 impl Dice {
-    /// Creates a copy of the given dice, but with a new top value.
-    pub fn clone_with_top(&self, top: i16) -> Self {
-        let mut dice = self.clone();
-        dice.top = Some(top);
+    /// Mutates the top value of the dice, and returns it.
+    pub fn set_top(mut self, top: i16) -> Self {
+        self.top = Some(top);
 
-        dice
+        self
     }
 
     /// Creates a new dice, based on a rotation in the given direction of the current dice.
@@ -296,7 +295,6 @@ mod tests {
         assert_eq!(top, Some(new_top));
 
         let new_top = 27;
-        let new_die = dice.clone_with_top(new_top);
-        assert_eq!(new_die.get_top(), Some(new_top));
+        assert_eq!(dice.set_top(new_top).get_top(), Some(new_top));
     }
 }
