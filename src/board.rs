@@ -50,6 +50,7 @@ impl Board {
         }
     }
 
+    /// Creates a new cell representing the value and position at the starting position.
     pub fn start_cell(&self) -> Cell {
         Cell {
             value: self.board[BOARD_WIDTH - 1][0],
@@ -57,65 +58,39 @@ impl Board {
         }
     }
 
+    /// Tries to return the cell we land onto after moving from the current cell
+    /// in the given direction.
+    /// Returns `None` if that movement would be out of bounds.
     pub fn move_in(&self, curr_cell: &Cell, direction: Direction) -> Option<Cell> {
-        match direction {
-            Direction::UP => self.move_up(curr_cell),
-            Direction::RIGHT => self.move_right(curr_cell),
-            Direction::DOWN => self.move_down(curr_cell),
-            Direction::LEFT => self.move_left(curr_cell),
-        }
+        let (row, col) = curr_cell.position;
+
+        let moved_position = match direction {
+            Direction::UP => {
+                // Avoid a substraction overflow error.
+                if row == 0 {
+                    return None;
+                }
+
+                (row - 1, col)
+            }
+            Direction::RIGHT => (row, col + 1),
+            Direction::DOWN => (row + 1, col),
+            Direction::LEFT => {
+                // Avoid a substraction overflow error.
+                if col == 0 {
+                    return None;
+                }
+
+                (row, col - 1)
+            }
+        };
+
+        self.get_cell_at(moved_position)
     }
 
-    fn move_up(&self, curr_cell: &Cell) -> Option<Cell> {
-        let (curr_row, curr_col) = curr_cell.position;
-        if curr_row > 0 {
-            let row_up = curr_row - 1;
-            Some(Cell {
-                value: self.board[row_up][curr_col],
-                position: (row_up, curr_col),
-            })
-        } else {
-            None
-        }
-    }
-
-    fn move_down(&self, curr_cell: &Cell) -> Option<Cell> {
-        let (curr_row, curr_col) = curr_cell.position;
-        if curr_row < BOARD_WIDTH - 1 {
-            let row_down = curr_row + 1;
-            Some(Cell {
-                value: self.board[row_down][curr_col],
-                position: (row_down, curr_col),
-            })
-        } else {
-            None
-        }
-    }
-
-    fn move_left(&self, curr_cell: &Cell) -> Option<Cell> {
-        let (curr_row, curr_col) = curr_cell.position;
-        if curr_col > 0 {
-            let col_left = curr_col - 1;
-            Some(Cell {
-                value: self.board[curr_row][col_left],
-                position: (curr_row, col_left),
-            })
-        } else {
-            None
-        }
-    }
-
-    fn move_right(&self, curr_cell: &Cell) -> Option<Cell> {
-        let (curr_row, curr_col) = curr_cell.position;
-        if curr_col < BOARD_WIDTH - 1 {
-            let col_right = curr_col + 1;
-            Some(Cell {
-                value: self.board[curr_row][col_right],
-                position: (curr_row, col_right),
-            })
-        } else {
-            None
-        }
+    fn get_cell_at(&self, position: Position) -> Option<Cell> {
+        let value = *self.board.get(position.0)?.get(position.1)?;
+        Some(Cell { value, position })
     }
 
     pub fn compute_sum_of_unvisited_cells(
@@ -150,31 +125,21 @@ mod tests {
         assert!(!cell.is_end_cell());
         assert_eq!(cell, board.start_cell());
 
-        assert!(board.move_left(&cell).is_none());
         assert!(board.move_in(&cell, Direction::LEFT).is_none());
-
-        assert!(board.move_down(&cell).is_none());
         assert!(board.move_in(&cell, Direction::DOWN).is_none());
-
         assert_eq!(
-            board.move_up(&cell),
+            board.move_in(&cell, Direction::UP),
             Some(Cell {
                 value: 5,
                 position: (4, 0)
             })
         );
-        assert_eq!(board.move_up(&cell), board.move_in(&cell, Direction::UP));
-
         assert_eq!(
-            board.move_right(&cell),
+            board.move_in(&cell, Direction::RIGHT),
             Some(Cell {
                 value: 77,
                 position: (5, 1)
             })
-        );
-        assert_eq!(
-            board.move_right(&cell),
-            board.move_in(&cell, Direction::RIGHT)
         );
     }
 
@@ -188,34 +153,21 @@ mod tests {
         assert!(!cell.is_end_cell());
         assert_ne!(cell, board.start_cell());
 
-        assert!(board.move_left(&cell).is_none());
         assert!(board.move_in(&cell, Direction::LEFT).is_none());
-
-        assert!(board.move_up(&cell).is_none());
         assert!(board.move_in(&cell, Direction::UP).is_none());
-
         assert_eq!(
-            board.move_right(&cell),
+            board.move_in(&cell, Direction::RIGHT),
             Some(Cell {
                 value: 33,
                 position: (0, 1)
             })
         );
         assert_eq!(
-            board.move_right(&cell),
-            board.move_in(&cell, Direction::RIGHT)
-        );
-
-        assert_eq!(
-            board.move_down(&cell),
+            board.move_in(&cell, Direction::DOWN),
             Some(Cell {
                 value: 81,
                 position: (1, 0)
             })
-        );
-        assert_eq!(
-            board.move_down(&cell),
-            board.move_in(&cell, Direction::DOWN)
         );
     }
 
@@ -229,34 +181,21 @@ mod tests {
         assert!(cell.is_end_cell());
         assert_ne!(cell, board.start_cell());
 
-        assert!(board.move_up(&cell).is_none());
         assert!(board.move_in(&cell, Direction::UP).is_none());
-
-        assert!(board.move_right(&cell).is_none());
         assert!(board.move_in(&cell, Direction::RIGHT).is_none());
-
         assert_eq!(
-            board.move_down(&cell),
+            board.move_in(&cell, Direction::DOWN),
             Some(Cell {
                 value: 508,
                 position: (1, BOARD_WIDTH - 1)
             })
         );
         assert_eq!(
-            board.move_down(&cell),
-            board.move_in(&cell, Direction::DOWN)
-        );
-
-        assert_eq!(
-            board.move_left(&cell),
+            board.move_in(&cell, Direction::LEFT),
             Some(Cell {
                 value: 492,
                 position: (0, BOARD_WIDTH - 2)
             })
-        );
-        assert_eq!(
-            board.move_left(&cell),
-            board.move_in(&cell, Direction::LEFT)
         );
     }
 
@@ -270,32 +209,22 @@ mod tests {
         assert!(!cell.is_end_cell());
         assert_ne!(cell, board.start_cell());
 
-        assert!(board.move_right(&cell).is_none());
         assert!(board.move_in(&cell, Direction::RIGHT).is_none());
-
-        assert!(board.move_down(&cell).is_none());
         assert!(board.move_in(&cell, Direction::DOWN).is_none());
-
         assert_eq!(
-            board.move_left(&cell),
+            board.move_in(&cell, Direction::LEFT),
             Some(Cell {
                 value: 337,
                 position: (BOARD_WIDTH - 1, BOARD_WIDTH - 2)
             })
         );
         assert_eq!(
-            board.move_left(&cell),
-            board.move_in(&cell, Direction::LEFT)
-        );
-
-        assert_eq!(
-            board.move_up(&cell),
+            board.move_in(&cell, Direction::UP),
             Some(Cell {
                 value: 620,
                 position: (BOARD_WIDTH - 2, BOARD_WIDTH - 1)
             })
         );
-        assert_eq!(board.move_up(&cell), board.move_in(&cell, Direction::UP));
     }
 
     #[test]
