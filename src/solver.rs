@@ -4,7 +4,6 @@ use crate::{
     direction::Direction,
 };
 
-use clap::Parser;
 use std::collections::{HashSet, VecDeque};
 use strum::IntoEnumIterator;
 
@@ -29,7 +28,7 @@ impl Journey {
             .expect("A journey must have visited at least one cell.")
     }
 
-    fn explain(&self) {
+    fn explain(&self) -> String {
         // First, go backwards through the visited cells. This will help us list the dice movements,
         // and figure out the initial configuration of the dice.
         let mut last_visited_cell = self.get_last_visited_cell();
@@ -64,7 +63,8 @@ impl Journey {
             last_visited_cell = second_to_last_visited_cell;
         }
 
-        println!("We started with the following dice: {:?}", dice);
+        let mut explanation = Vec::new();
+        explanation.push(format!("We started with the following dice: {:?}", dice));
 
         // Now that we have made back it the start cell, explain the movements applied from start to end.
         dice_movements.reverse();
@@ -74,15 +74,18 @@ impl Journey {
 
             let dice_top = dice.get_top().unwrap();
             let new_score = score + (turn as i16 + 1) * dice_top;
-            println!(
+            explanation.push(
+            format!(
                 "Turn {} we rolled the dice {:?} (top={}). Score was {}, now is `{} + ({} x {}) = {}` (cell value = {}).",
                 turn+1,
                 dice_movement,
                 dice_top, score, score, turn+1, dice_top, new_score, self.visited_cells[turn+1].get_value()
-            );
+            ));
 
             score = new_score;
         }
+
+        explanation.join("\n")
     }
 }
 
@@ -96,12 +99,12 @@ enum MovementOutcome {
     Invalid,
 }
 
-#[derive(Parser)]
-#[command(version, about)]
-pub struct SolverArgs {
-    /// Provides a textual explanation of the solution, if any is found.
-    #[arg(short, long)]
-    explain: bool,
+/// Enumerates the possible outcomes when solving the puzzle.
+pub enum Solution {
+    /// If found, this holds the sum of unvisited cells, as well as an explanation message.
+    Found(i16, String),
+    /// No solutions found.
+    NotFound,
 }
 
 /// Solves the puzzle by using a BFS traversal.
@@ -129,17 +132,13 @@ impl Solver {
     }
 
     /// Solves the puzzle, which consumes the solver.
-    pub fn solve(mut self, args: SolverArgs) {
+    pub fn solve(mut self) -> Solution {
         match self.find_solution_journey() {
             Some(solution_journey) => {
                 let sum = self.compute_sum_of_unvisited_cells(&solution_journey);
-                println!("The sum of values in the unvisited cells is {}.", sum);
-
-                if args.explain {
-                    solution_journey.explain();
-                }
+                Solution::Found(sum, solution_journey.explain())
             }
-            None => println!("Oops, found no solution..."),
+            None => Solution::NotFound,
         }
     }
 
@@ -169,7 +168,7 @@ impl Solver {
                     // If we are inbounds after this movement, confirm that moving there is valid,
                     // per the puzzle rules.
                     let rolled_dice = journey.dice.roll_in(direction);
-                    match self.try_dice_movement(
+                    match Solver::try_dice_movement(
                         rolled_dice,
                         last_visited_cell.get_value(),
                         new_turn,
@@ -189,7 +188,6 @@ impl Solver {
     }
 
     fn try_dice_movement(
-        &self,
         dice: Dice,
         score: i16,
         new_turn: i16,
@@ -244,5 +242,67 @@ impl Solver {
         } else {
             MovementOutcome::ValidJourney(valid_journey)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    impl Solution {
+        /// Return true if a solution was found.
+        fn found_solution(&self) -> bool {
+            matches!(self, Solution::Found(..))
+        }
+
+        /// Returns the sum+explanation tuple contained in the `Found` value, consuming itself.
+        ///
+        /// # Panics
+        /// Panics if no solution was found.
+        fn unwrap(self) -> (i16, String) {
+            match self {
+                Solution::Found(sum, explanation) => (sum, explanation),
+                Solution::NotFound => panic!("called `Solution::unwrap()` on a `NotFound` value"),
+            }
+        }
+    }
+
+    fn create_default_journey() -> Journey {
+        Journey {
+            dice: Dice::default(),
+            turn: 0,
+            visited_cells: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn compute_sum_of_unvisited_cells_works() {
+        let solver = Solver::new();
+        let mut journey = create_default_journey();
+
+        assert_eq!(
+            solver.compute_sum_of_unvisited_cells(&journey),
+            solver.board.compute_sum_of_unvisited_cells(&HashSet::new())
+        );
+
+        let visited_position = (3, 2);
+        let visited_cell = solver.board.get_cell_at(visited_position.clone()).unwrap();
+        journey.visited_cells = vec![visited_cell];
+
+        assert_eq!(
+            solver.compute_sum_of_unvisited_cells(&journey),
+            solver
+                .board
+                .compute_sum_of_unvisited_cells(&HashSet::from([&visited_position]))
+        );
+    }
+
+    #[test]
+    fn solver_finds_right_solution() {
+        let solution = Solver::new().solve();
+
+        assert!(solution.found_solution());
+        let (sum_unvisited_cells, _) = solution.unwrap();
+        assert_eq!(sum_unvisited_cells, 1935);
     }
 }

@@ -88,7 +88,7 @@ impl Board {
         self.get_cell_at(moved_position)
     }
 
-    fn get_cell_at(&self, position: Position) -> Option<Cell> {
+    pub fn get_cell_at(&self, position: Position) -> Option<Cell> {
         let value = *self.board.get(position.0)?.get(position.1)?;
         Some(Cell { value, position })
     }
