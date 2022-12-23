@@ -164,7 +164,10 @@ impl Solver {
             let new_turn = journey.turn + 1;
 
             for direction in Direction::iter() {
+                // Confirm that a movement in this direction yiels a cell (i.e. not outbounds).
                 if let Some(cell) = self.board.move_in(last_visited_cell, direction) {
+                    // If we are inbounds after this movement, confirm that moving there is valid,
+                    // per the puzzle rules.
                     let rolled_dice = journey.dice.roll_in(direction);
                     match self.try_dice_movement(
                         rolled_dice,
