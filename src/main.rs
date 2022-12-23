@@ -1,6 +1,13 @@
+//! This is a Rust solution to the _Die Agony_ puzzle,
+//! described in <https://www.janestreet.com/puzzles/die-agony-index/>.
+
+use clap::Parser;
+
 mod board;
-mod die;
+mod dice;
+mod direction;
+mod solver;
 
 fn main() {
-    println!("Hello, world!");
+    solver::Solver::new().solve(solver::SolverArgs::parse());
 }
